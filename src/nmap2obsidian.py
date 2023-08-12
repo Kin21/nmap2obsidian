@@ -68,8 +68,8 @@ if not os.path.isdir(vault_path) and not args.init_vault:
 
 config_dir = str(os.path.join(vault_path, 'config'))
 config_file_path = str(os.path.join(config_dir, 'config.json'))
-raw_files_dir = str(os.path.join(vault_path, 'Raw files'))
-nmap_scan_results_dir = str(os.path.join(raw_files_dir, 'Nmap Scan Results'))
+raw_files_dir = str(os.path.join(vault_path, 'Raw_files'))
+nmap_scan_results_dir = str(os.path.join(raw_files_dir, 'Nmap_Scan_Results'))
 
 # Files to create in each host directory
 raw_file_name = 'Raw.md'
@@ -77,9 +77,9 @@ notes_file_name = 'Notes.md'
 host_dir_init_files = [raw_file_name]
 
 # Folders to create in each host directory
-open_ports_dir_name = 'Open ports'
+open_ports_dir_name = 'Services'
 screenshots_dir_name = 'Screenshots'
-raw_files_dir_name = 'Raw files'
+raw_files_dir_name = 'Raw_files'
 host_dir_init_dirs = [open_ports_dir_name, screenshots_dir_name, raw_files_dir_name]
 
 # Formats
@@ -256,7 +256,8 @@ def add_new_host(host):
     host_file_path = str(os.path.join(host_dir_path, host.address))
     write_host_info(host, host_file_path + '.md')
     config = read_config()
-    save_path = config_dir + 'save' + host.address + '.pickle'
+    save_path = 'save' + host.address + '.pickle'
+    save_path = str(os.path.join(config_dir, save_path))
     config['hosts'].update({host.address: save_path})
     write_config(config)
     save_old_host_object(host, save_path)
@@ -308,7 +309,8 @@ def update_host_data(host):
     add_host_services(new_host)
     all_services = new_services + old_host.services
     new_host = NmapHost(address=host._address, services=all_services, status=host._status, hostnames=host.hostnames)
-    save_path = config_dir + 'save' + host.address + '.pickle'
+    save_path = 'save' + host.address + '.pickle'
+    save_path = str(os.path.join(config_dir, save_path))
     save_old_host_object(new_host, save_path)
     for s in new_services:
         update_host_page_with_new_services(host, s)
