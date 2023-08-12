@@ -3,8 +3,51 @@
 - Simple script to create folder structure and markdown files based on hardcoded template.
 - Intended to use in Obsidian for notes managements during penetration testing and utilizing its visualization features.
 - Folders are build based on the nmap scripts results provided in form of xml file
-- Additional folders for new hosts or new discovered services can be added to same vault (not implemented yet)
+- Additional folders for new hosts or new discovered services can be added to same vault 
 - [python-libnmap](https://github.com/savon-noir/python-libnmap/tree/master) is used for Nmap scans parse
+
+# Host updates
+
+- If we have different scans for same host:
+```commandline
+nmap scanme.nmap.org -p 22 -oX s1.xml -sC -sV
+nmap scanme.nmap.org -p 80 -oX s2.xml -sC -sV
+nmap scanme.nmap.org -p 9929 -oX s3.xml -sC -sV
+```
+- It is possible to add new discovered services into the vault
+> [!WARNING]
+> This is experemental feature that can result in notes corruption, backup before usage ...
+
+If host IP that is already added to notes will be found in new scan results,
+its folder will be updated with new discovered services 
+```bash
+# This will trigger host update if same IP in s1.xml and s2.xml
+python .\nmap2obsidian.py -f .\s1.xml --vault_name test
+python .\nmap2obsidian.py -f .\s2.xml --vault_name test
+
+# Or specify all files
+ python .\nmap2obsidian.py -f .\s2.xml .\s1.xml .\s3.xml --vault_name test
+```
+
+# Help section
+```
+usage: nmap2obsidian [-h] [-f files [files ...]] [--vault_name VAULT_NAME] [--delete_vault] [--init_vault] [--raw_import RAW_IMPORT] [--raw_h {1,2,3,4,5}]
+                     [--header HEADER]
+
+This program allows you to create folder structure for notes that are written in Markdown by using nmap scan results as input.
+
+options:
+  -h, --help            show this help message and exit
+  -f files [files ...]  Nmap scan result saved as xml files to parse
+  --vault_name VAULT_NAME
+                        Name of the root folder for notes
+  --delete_vault        Delete vault folder
+  --init_vault          Init vault
+  --raw_import RAW_IMPORT
+                        Import raw txt files that represents logs\raw commands output and append to Raw.md
+  --raw_h {1,2,3,4,5}   Number of # to use for header
+  --header HEADER       Headers that will be used for inserted text or filename if not provided
+  ```
 
 # Examples 
 ```bash

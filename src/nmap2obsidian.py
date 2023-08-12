@@ -289,7 +289,8 @@ def update_host_page_with_new_services(host, s):
         new_services_data += f'{result_string}\n\n'
     new_services_data = old_services_data + new_services_data
     new_data = old_page_data.replace(old_services_data, new_services_data)
-    print(new_data)
+    with open(host_page_path, 'w') as f:
+        f.write(new_data)
 
 
 def update_host_data(host):
