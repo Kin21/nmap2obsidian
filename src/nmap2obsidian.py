@@ -1,11 +1,13 @@
 import argparse
 import os
 from libnmap.parser import NmapParser
+from libnmap.objects import NmapHost
 import datetime
 import json
 import shutil
 import re
-
+import pickle
+import ipaddress
 
 # Argument parsing section
 parser = argparse.ArgumentParser(
@@ -138,6 +140,11 @@ def read_config():
     return config
 
 
+def write_config(config):
+    with open(config_file_path, 'w') as f:
+        json.dump(config, f)
+
+
 def delete_data():
     # This overhead ensures that correct folder will be deleted
     # If no config will be found just error occurs
@@ -236,6 +243,11 @@ def add_host_services(host):
         create_new_file(file_path)
 
 
+def save_old_host_object(host, save_path):
+    with open(save_path, 'wb') as f:
+        pickle.dump(host, f)
+
+
 def add_new_host(host):
     if not host.is_up():
         return
@@ -243,6 +255,62 @@ def add_new_host(host):
     add_host_services(host)
     host_file_path = str(os.path.join(host_dir_path, host.address))
     write_host_info(host, host_file_path + '.md')
+    config = read_config()
+    save_path = config_dir + 'save' + host.address + '.pickle'
+    config['hosts'].update({host.address: save_path})
+    write_config(config)
+    save_old_host_object(host, save_path)
+
+
+def get_old_host_data(host):
+    config = read_config()
+    save_path = config['hosts'][host.address]
+    with open(save_path, 'rb') as f:
+        return pickle.load(f)
+
+
+def update_host_page_with_new_services(host, s):
+    host_page_path = str(os.path.join(vault_path, host.address, host.address + '.md'))
+    with open(host_page_path, 'r') as f:
+        old_page_data = f.readlines()
+    old_page_data = ''.join(old_page_data)
+    old_services_data = old_page_data.split('## Services \n\n')[1].split('## Other results\n\n')[0]
+    new_services_data = ''
+    service_name = open_ports_dir_name + f'/{s.port}-{s.service} {s.protocol}'
+    link_to_service = create_link_text(service_name, f'{s.port}-{s.service} {s.protocol}')
+    new_services_data += f'### {link_to_service} \n\n'
+    new_services_data += f'Port: {s.port} Service: {s.service}\n'
+    new_services_data += f'Banner: {s.banner}\n'
+    new_services_data += f'Reason: {s.reason}\n'
+    if s.scripts_results:
+        new_services_data += f'#### Scripts\n\n'
+        script_res = json.dumps(s.scripts_results, indent=4)
+        result_string = re.sub(r'[\[\]\{\}]', ' ', script_res)
+        new_services_data += f'{result_string}\n\n'
+    new_services_data = old_services_data + new_services_data
+    new_data = old_page_data.replace(old_services_data, new_services_data)
+    print(new_data)
+
+
+def update_host_data(host):
+    old_host = get_old_host_data(host)
+    nmap_diff_obj = host.diff(old_host).added()
+    new_services = []
+    for str_key in nmap_diff_obj:
+        if str_key.split('::')[0] == 'NmapService':
+            proto, port = str_key.split('::')[1].split('.')
+            port = int(port)
+            s = host.get_service(port, proto)
+            if s.open():
+                new_services.append(s)
+    new_host = NmapHost(address=host._address, services=new_services, status=host._status, hostnames=host.hostnames)
+    add_host_services(new_host)
+    all_services = new_services + old_host.services
+    new_host = NmapHost(address=host._address, services=all_services, status=host._status, hostnames=host.hostnames)
+    save_path = config_dir + 'save' + host.address + '.pickle'
+    save_old_host_object(new_host, save_path)
+    for s in new_services:
+        update_host_page_with_new_services(host, s)
 
 
 def parse_nmap_scans():
@@ -259,7 +327,8 @@ def parse_nmap_scans():
     for h in hosts:
         if not host_is_present(h.address):
             add_new_host(h)
-
+        else:
+            update_host_data(h)
 
 # Execution
 if args.delete_vault:
@@ -271,3 +340,4 @@ elif args.raw_import:
     raw_import()
 
 parse_nmap_scans()
+
