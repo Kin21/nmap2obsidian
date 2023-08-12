@@ -31,6 +31,19 @@ parser.add_argument('--init_vault', action='store_true',
                     help='Init vault',
                     required=False)
 
+parser.add_argument('--raw_import', action='store',
+                    help='Import raw txt files that represents logs\\raw commands output and append to Raw.md',
+                    required=False)
+
+parser.add_argument('--raw_h', action='store', choices=list(range(1, 6)),
+                    help='Number of # to use for header',
+                    default=1,
+                    required=False, type=int)
+
+parser.add_argument('--header', action='store',
+                    help='Headers that will be used for inserted text or filename if not provided',
+                    required=False)
+
 args = parser.parse_args()
 ###
 
@@ -58,6 +71,7 @@ nmap_scan_results_dir = str(os.path.join(raw_files_dir, 'Nmap Scan Results'))
 
 # Files to create in each host directory
 raw_file_name = 'Raw.md'
+notes_file_name = 'Notes.md'
 host_dir_init_files = [raw_file_name]
 
 # Folders to create in each host directory
@@ -99,8 +113,8 @@ def init_vault():
     init_config()
     os.mkdir(raw_files_dir)
     os.mkdir(nmap_scan_results_dir)
-    create_new_file(str(os.path.join(vault_path, 'Raw.md')))
-    create_new_file(str(os.path.join(vault_path, 'Notes.md')))
+    create_new_file(str(os.path.join(vault_path, raw_file_name)))
+    create_new_file(str(os.path.join(vault_path, notes_file_name)))
     create_new_file(str(os.path.join(vault_path, 'Report.md')))
     exit()
 
@@ -172,6 +186,25 @@ def write_host_info(host, file_name):
         f.write(data)
 
 
+def raw_import():
+    try:
+        with open(args.raw_import, encoding='latin-1') as f:
+            data = f.readlines()
+    except FileNotFoundError:
+        print(f'File {args.raw_import} not found !')
+        exit(-1)
+    string_to_write = ''.join(data)
+    header_text = args.header if args.header else re.split(r'[.\\/]', args.raw_import)[0]
+    if not header_text:
+        header_text = 'Raw_file_import'
+    header_text = ('#' * args.raw_h) + ' ' + header_text
+    string_to_write = f'\n\n{header_text}\n```powershell\n' + string_to_write + '\n```\n\n'
+    path_to_raw_file = str(os.path.join(vault_path, raw_file_name))
+    with open(path_to_raw_file, 'a') as f:
+        f.write(string_to_write)
+    shutil.copyfile(args.raw_import, str(os.path.join(raw_files_dir, args.raw_import)))
+    exit(0)
+
 
 
 
@@ -218,6 +251,8 @@ def parse_nmap_scans():
     except FileNotFoundError as e:
         print(f'File "{e.filename}" was not found, not changes done, aborting...')
         exit(-1)
+    for f in args.f:
+        shutil.copyfile(f, str(os.path.join(nmap_scan_results_dir, f)))
     hosts = []
     for r in nmap_reports:
         hosts += r.hosts
@@ -232,4 +267,7 @@ if args.delete_vault:
         delete_data()
 elif args.init_vault:
     init_vault()
+elif args.raw_import:
+    raw_import()
+
 parse_nmap_scans()
